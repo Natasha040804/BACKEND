@@ -57,49 +57,61 @@ app.get('/api/health', (req, res) => {
   res.json({ ok: true, time: new Date().toISOString() });
 });
 
+// Diagnostic helper to isolate path-to-regexp crash: wraps app.use
+function safeMount(basePath, router) {
+  try {
+    app.use(basePath, router);
+    console.log(`[mount-ok] ${basePath}`);
+  } catch (e) {
+    console.error(`[mount-fail] ${basePath}:`, e && e.message);
+    // Re-throw so deployment still fails (we want full stack) but with extra context
+    throw e;
+  }
+}
+
 // API Routes
 const authRoutes = require('./Routes/authRoutes');
 // mount auth routes at both /api and /api/auth so clients can use either shape
-app.use('/api', authRoutes);
-app.use('/api/auth', authRoutes);
+safeMount('/api', authRoutes);
+safeMount('/api/auth', authRoutes);
 
 const branchAccessRoutes = require('./Routes/branchAccessRoutes');
-app.use('/api', branchAccessRoutes);
+safeMount('/api', branchAccessRoutes);
 
 const branchRoutes = require('./Routes/branchRoutes');
-app.use('/api', branchRoutes);
+safeMount('/api', branchRoutes);
 
 // Auditor routes (broad access read APIs)
 const auditorRoutes = require('./Routes/auditorRoutes');
-app.use('/api', auditorRoutes);
+safeMount('/api', auditorRoutes);
 
 // Additional API routes
 const inventoryRoutes = require('./Routes/inventoryRoutes');
 // Mount at both /api and /api/inventory for backward compatibility with older clients
-app.use('/api', inventoryRoutes);
-app.use('/api/inventory', inventoryRoutes);
+safeMount('/api', inventoryRoutes);
+safeMount('/api/inventory', inventoryRoutes);
 
 const userRoutes = require('./Routes/userRoutes');
-app.use('/api', userRoutes);
+safeMount('/api', userRoutes);
 
 // Transactions and activity logs
 const transactionsRoutes = require('./Routes/transactionsRoutes');
-app.use('/api', transactionsRoutes);
+safeMount('/api', transactionsRoutes);
 
 const messageRoutes = require('./Routes/messageRoutes');
-app.use('/api', messageRoutes);
+safeMount('/api', messageRoutes);
 
 // Dashboard summary metrics
 const dashboardRoutes = require('./Routes/dashboardRoutes');
-app.use('/api/dashboard', dashboardRoutes);
+safeMount('/api/dashboard', dashboardRoutes);
 
 // Capital routes (current capital endpoints)
 const capitalRoutes = require('./Routes/capitalRoutes');
-app.use('/api/capital', capitalRoutes);
+safeMount('/api/capital', capitalRoutes);
 
 // Delivery locations (mobile GPS ingest + latest fetch)
 const deliveryLocationsRoutes = require('./Routes/deliveryLocations');
-app.use('/api/delivery-locations', deliveryLocationsRoutes);
+safeMount('/api/delivery-locations', deliveryLocationsRoutes);
 
 // User-scoped delivery assignments using X-User-Id header
 // Define these specific paths BEFORE mounting the generic '/:assignmentId' routes to avoid conflicts
@@ -309,7 +321,7 @@ app.get('/api/delivery-assignments/branch/:branchId', authenticate, async (req, 
 
 // Delivery assignments (personnel active/history and status update)
 const deliveryAssignmentsRoutes = require('./Routes/deliveryAssignments');
-app.use('/api/delivery-assignments', deliveryAssignmentsRoutes);
+safeMount('/api/delivery-assignments', deliveryAssignmentsRoutes);
 
 // Profile endpoint for mobile/web clients
 app.get('/api/profile', authenticate, async (req, res) => {
