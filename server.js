@@ -1,19 +1,11 @@
-// server.js - Just add the new routes
+// server.js - route setup with early diagnostics
 require('dotenv').config();
-const express = require('express');
-const path = require('path');
-const cookieParser = require('cookie-parser');
-const multer = require('multer');
-const cors = require('cors');
-const session = require('express-session');
 
-const app = express();
-
-// Deep diagnostic: capture every route path string as Router (path-to-regexp) converts it.
-// ONLY for temporary debugging of the Missing parameter name error in production.
+// EARLY patch BEFORE express loads Router so we actually wrap Layer constructor.
+// Temporary: remove once offending path identified.
 try {
   const layerPath = require.resolve('router/lib/layer.js');
-  const LayerOrig = require('router/lib/layer.js'); // constructor function
+  const LayerOrig = require(layerPath);
   if (!LayerOrig.__patched_for_diag_ctor) {
     function logPattern(p) {
       try {
@@ -30,16 +22,24 @@ try {
       }
       return LayerOrig.call(this, path, options, fn);
     };
-    // copy static properties
     Object.keys(LayerOrig).forEach(k => { WrappedLayer[k] = LayerOrig[k]; });
     WrappedLayer.prototype = LayerOrig.prototype;
     WrappedLayer.__patched_for_diag_ctor = true;
     require.cache[layerPath].exports = WrappedLayer;
-    console.log('[debug] Router Layer constructor patched for route diagnostics');
+    console.log('[debug] Early Router Layer constructor patch active');
   }
 } catch (e) {
-  console.warn('[debug] Failed to patch router Layer for diagnostics:', e && e.message);
+  console.warn('[debug] Early Layer patch failed:', e && e.message);
 }
+
+const express = require('express');
+const path = require('path');
+const cookieParser = require('cookie-parser');
+const multer = require('multer');
+const cors = require('cors');
+const session = require('express-session');
+
+const app = express();
 
 // Session configuration
 app.use(session({
