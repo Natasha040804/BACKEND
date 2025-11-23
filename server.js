@@ -883,7 +883,8 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // Serve static files from React in production
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, '../dlms-frontend/build')));
-  app.get('*', (req, res) => {
+  // Express 5 (path-to-regexp v6) no longer accepts bare "*" pattern; use a regex or explicit wildcard segment.
+  app.get(/.*/, (req, res) => {
     res.sendFile(path.join(__dirname, '../dlms-frontend/build', 'index.html'));
   });
 }
