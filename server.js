@@ -9,30 +9,28 @@ const session = require('express-session');
 
 const app = express();
 
-// Deep diagnostic: capture every route path string as Express (path-to-regexp) converts it.
+// Deep diagnostic: capture every route path string as Router (path-to-regexp) converts it.
 // ONLY for temporary debugging of the Missing parameter name error in production.
 try {
-  const Layer = require('express/lib/router/layer');
+  const Layer = require('router/lib/layer.js'); // express@5 uses external 'router'
   const originalMatch = Layer.prototype.match;
-  if (!Layer.__patched) {
-    Layer.__patched = true;
+  if (!Layer.__patched_for_diag) {
+    Layer.__patched_for_diag = true;
     Layer.prototype.match = function patchedMatch(path) {
-      if (this && this.regexp && this.path) {
-        // Log raw path once at layer creation (flag with internal symbol)
-        if (!this.__logged) {
-          this.__logged = true;
+      if (this && this.matchers && this.path !== undefined) {
+        if (!this.__logged_path) {
+          this.__logged_path = true;
           const raw = String(this.path);
-          // Highlight suspicious leading colon or non-printables
           const hex = raw.split('').map(c => c.charCodeAt(0).toString(16).padStart(2,'0')).join(' ');
           console.log(`[layer] path="${raw}" length=${raw.length} hex=${hex}`);
         }
       }
       return originalMatch.call(this, path);
     };
-    console.log('[debug] Express Layer match patched for route diagnostics');
+    console.log('[debug] Router Layer match patched for route diagnostics');
   }
 } catch (e) {
-  console.warn('[debug] Failed to patch express Layer for diagnostics:', e && e.message);
+  console.warn('[debug] Failed to patch router Layer for diagnostics:', e && e.message);
 }
 
 // Session configuration
