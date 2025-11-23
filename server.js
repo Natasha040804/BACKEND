@@ -12,22 +12,30 @@ const app = express();
 // Deep diagnostic: capture every route path string as Router (path-to-regexp) converts it.
 // ONLY for temporary debugging of the Missing parameter name error in production.
 try {
-  const Layer = require('router/lib/layer.js'); // express@5 uses external 'router'
-  const originalMatch = Layer.prototype.match;
-  if (!Layer.__patched_for_diag) {
-    Layer.__patched_for_diag = true;
-    Layer.prototype.match = function patchedMatch(path) {
-      if (this && this.matchers && this.path !== undefined) {
-        if (!this.__logged_path) {
-          this.__logged_path = true;
-          const raw = String(this.path);
-          const hex = raw.split('').map(c => c.charCodeAt(0).toString(16).padStart(2,'0')).join(' ');
-          console.log(`[layer] path="${raw}" length=${raw.length} hex=${hex}`);
-        }
+  const layerPath = require.resolve('router/lib/layer.js');
+  const LayerOrig = require('router/lib/layer.js'); // constructor function
+  if (!LayerOrig.__patched_for_diag_ctor) {
+    function logPattern(p) {
+      try {
+        const raw = String(p);
+        const hex = raw.split('').map(c => c.charCodeAt(0).toString(16).padStart(2,'0')).join(' ');
+        console.log(`[layer-ctor] raw="${raw}" length=${raw.length} hex=${hex}`);
+      } catch (_) {}
+    }
+    const WrappedLayer = function(path, options, fn) {
+      if (Array.isArray(path)) {
+        path.forEach(logPattern);
+      } else {
+        logPattern(path);
       }
-      return originalMatch.call(this, path);
+      return LayerOrig.call(this, path, options, fn);
     };
-    console.log('[debug] Router Layer match patched for route diagnostics');
+    // copy static properties
+    Object.keys(LayerOrig).forEach(k => { WrappedLayer[k] = LayerOrig[k]; });
+    WrappedLayer.prototype = LayerOrig.prototype;
+    WrappedLayer.__patched_for_diag_ctor = true;
+    require.cache[layerPath].exports = WrappedLayer;
+    console.log('[debug] Router Layer constructor patched for route diagnostics');
   }
 } catch (e) {
   console.warn('[debug] Failed to patch router Layer for diagnostics:', e && e.message);
