@@ -1,5 +1,7 @@
 const db = require('../Config/db_connection');
-const bcrypt = require('bcrypt');
+// Prefer native bcrypt; fallback to bcryptjs if native fails or not present
+let bcrypt;
+try { bcrypt = require('bcrypt'); } catch (_) { bcrypt = require('bcryptjs'); }
 const jwt = require('jsonwebtoken');
 
 exports.login = async (req,res)=> {
@@ -30,6 +32,9 @@ exports.login = async (req,res)=> {
             'SELECT * FROM tbl_accounts WHERE Username = ? OR Email = ? LIMIT 1',
             [lookup, lookup]
         );
+        if (process.env.DEBUG_AUTH === '1') {
+            console.log('[auth-debug] lookup:', lookup, 'rows length:', users.length);
+        }
         if (!users.length) {
             return res.status(401).json({ error: 'Invalid credentials' });
         }
@@ -39,6 +44,9 @@ exports.login = async (req,res)=> {
         let isPasswordValid = false;
         try {
             isPasswordValid = await bcrypt.compare(password, user.Password);
+            if (process.env.DEBUG_AUTH === '1') {
+                console.log('[auth-debug] compare result:', isPasswordValid, 'hash prefix:', (user.Password||'').slice(0,7));
+            }
         } catch (e) {
             console.error('bcrypt compare failed:', e);
             return res.status(500).json({ error: isProd ? 'Server Error' : 'Password verification failed' });
