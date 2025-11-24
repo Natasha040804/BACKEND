@@ -83,8 +83,8 @@ router.post(
         return res.status(400).json({ error: 'username, password and role are required' });
       }
 
-      // Ensure unique username
-      const [existing] = await db.query('SELECT 1 FROM tbl_Accounts WHERE Username = ? LIMIT 1', [username]);
+      // Ensure unique username (table name normalized to lowercase)
+      const [existing] = await db.query('SELECT 1 FROM tbl_accounts WHERE Username = ? LIMIT 1', [username]);
       if (existing && existing.length) {
         return res.status(409).json({ error: 'Username already exists' });
       }
@@ -92,9 +92,9 @@ router.post(
       // Hash password
       const hashed = await bcrypt.hash(password, 10);
 
-      // Insert user
+      // Insert user (normalized table name). BranchID set to NULL unless provided.
       const [result] = await db.query(
-        'INSERT INTO tbl_Accounts (Fullname, Username, Password, EmployeeID, Email, Contact, Address, Photo, Role, BranchID) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        'INSERT INTO tbl_accounts (Fullname, Username, Password, EmployeeID, Email, Contact, Address, Photo, Role, BranchID) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         [fullName, username, hashed, employeeId || null, email || null, contact || null, address || null, photo, role, null]
       );
 
@@ -111,6 +111,9 @@ router.post(
       });
     } catch (e) {
       console.error('Create user error:', e);
+      if (process.env.NODE_ENV === 'development') {
+        return res.status(500).json({ error: 'Failed to create user', details: e.message, code: e.code });
+      }
       res.status(500).json({ error: 'Failed to create user' });
     }
   }
