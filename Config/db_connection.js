@@ -8,14 +8,17 @@ dotenv.config({ path: path.join(__dirname, '../.env') });
 // Resolve configuration with Railway fallbacks.
 // Primary expected vars: DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME
 // Railway automatic provisioning vars: MYSQLHOST, MYSQLPORT, MYSQLUSER, MYSQLPASSWORD, MYSQLDATABASE
-const resolved = {
-  host: process.env.DB_HOST || process.env.MYSQLHOST,
-  port: Number(process.env.DB_PORT || process.env.MYSQLPORT || 45330),
-  user: process.env.DB_USER || process.env.MYSQLUSER,
-  password: process.env.DB_PASSWORD || process.env.MYSQLPASSWORD,
-  database: process.env.DB_NAME || process.env.MYSQLDATABASE,
-};
+const pool = mysql.createPool({
+    host: process.env.DB_HOST,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
+    port: process.env.DB_PORT ,
+    waitForConnections: true,
+    connectionLimit: 30,
+    queueLimit: 0
 
+});
 // Basic validation / diagnostics (do NOT print full password)
 const missing = Object.entries(resolved)
   .filter(([k, v]) => !v && k !== 'password')
