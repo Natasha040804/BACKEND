@@ -1,36 +1,5 @@
-// server.js - route setup with early diagnostics
+// server.js - application bootstrap
 require('dotenv').config();
-
-// EARLY patch BEFORE express loads Router so we actually wrap Layer constructor.
-// Temporary: remove once offending path identified.
-try {
-  const layerPath = require.resolve('router/lib/layer.js');
-  const LayerOrig = require(layerPath);
-  if (!LayerOrig.__patched_for_diag_ctor) {
-    function logPattern(p) {
-      try {
-        const raw = String(p);
-        const hex = raw.split('').map(c => c.charCodeAt(0).toString(16).padStart(2,'0')).join(' ');
-        console.log(`[layer-ctor] raw="${raw}" length=${raw.length} hex=${hex}`);
-      } catch (_) {}
-    }
-    const WrappedLayer = function(path, options, fn) {
-      if (Array.isArray(path)) {
-        path.forEach(logPattern);
-      } else {
-        logPattern(path);
-      }
-      return LayerOrig.call(this, path, options, fn);
-    };
-    Object.keys(LayerOrig).forEach(k => { WrappedLayer[k] = LayerOrig[k]; });
-    WrappedLayer.prototype = LayerOrig.prototype;
-    WrappedLayer.__patched_for_diag_ctor = true;
-    require.cache[layerPath].exports = WrappedLayer;
-    console.log('[debug] Early Router Layer constructor patch active');
-  }
-} catch (e) {
-  console.warn('[debug] Early Layer patch failed:', e && e.message);
-}
 
 const express = require('express');
 const path = require('path');
